@@ -8,13 +8,12 @@ from typing import Optional
 from dotenv import load_dotenv
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from _config import SYSTEM_PROMPT, API_KEY
 
 load_dotenv(Path(__file__).parent / ".env", override=True)
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 PROFILES_FILE = Path(__file__).parent / "user_profiles.json"
-SKILL_FILE = Path(__file__).parent / "SKILL.md"
 
 # In-memory state
 user_conversations: dict[str, list[dict]] = {}  # user_id -> message history
@@ -22,14 +21,7 @@ user_onboarding: dict[str, int] = {}             # user_id -> onboarding step (0
 
 ONBOARDING_STEPS = ["name", "age", "location", "fortune"]
 
-client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-
-
-def load_skill_prompt() -> str:
-    """Load SKILL.md as the system prompt."""
-    if SKILL_FILE.exists():
-        return SKILL_FILE.read_text(encoding="utf-8")
-    return "You are a Daoist comfort companion. Be warm, non-judgmental, and always externalize the user's distress to circumstances rather than their own character."
+client = anthropic.Anthropic(api_key=API_KEY)
 
 
 def load_profiles() -> dict:
@@ -54,10 +46,9 @@ def save_profile(user_id: str, profile: dict):
 
 
 def build_system_prompt(profile: Optional[dict]) -> str:
-    skill = load_skill_prompt()
     lang_instruction = "\n\n## Language Instruction\nDefault language is Simplified Chinese (简体中文). Always reply in Simplified Chinese unless the user writes predominantly in another language, in which case mirror their language.\n"
     if not profile:
-        return skill + lang_instruction
+        return SYSTEM_PROMPT + lang_instruction
     profile_context = lang_instruction + "\n## Current User Profile\n"
     if profile.get("name"):
         profile_context += f"- Name/pronoun: {profile['name']}\n"
@@ -67,7 +58,7 @@ def build_system_prompt(profile: Optional[dict]) -> str:
         profile_context += f"- Location: {profile['location']}\n"
     if profile.get("topics"):
         profile_context += f"- Main anxieties: {profile['topics']}\n"
-    return skill + profile_context
+    return SYSTEM_PROMPT + profile_context
 
 
 def call_claude(user_id: str, user_message: str, profile: Optional[dict]) -> str:
@@ -106,13 +97,9 @@ async def send_chunked(chat_id: int, text: str, context: ContextTypes.DEFAULT_TY
 # ── Onboarding ────────────────────────────────────────────────────────────────
 
 ONBOARDING_PROMPTS = {
-    "welcome": (
-        "施主，坐。\n\n"
-        "这里不讲道理，不给建议，不修你。你没有问题。\n\n"
-        "先报个名。怎么称呼？"
-    ),
-    "age": "多大了？（不想说输入『跳过』）",
-    "location": "在哪座城？（不想说输入『跳过』）",
+    "welcome": "施主，坐。请问施主姓名？",
+    "age": "多大了？",
+    "location": "在哪座城？",
     "fortune": "好。最后一件事——求个今日签。\n\n输入『求签』。",
 }
 
@@ -146,11 +133,11 @@ FORTUNES = {
     ],
 }
 
-# Weighted: 上上签 15%, 上签 35%, 中签 40%, 下签 10%
+# Weighted: 上上签 35%, 上签 35%, 中签 20%, 下签 10%
 FORTUNE_WEIGHTS = [
-    ("上上签", 15),
+    ("上上签", 35),
     ("上签", 35),
-    ("中签", 40),
+    ("中签", 20),
     ("下签", 10),
 ]
 
@@ -205,25 +192,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if step > 0:
         profile = context.user_data.get("onboarding_profile", {})
         prompts = get_prompts()
-        skip_words = {"skip", "跳过", "略过", "pass", "no"}
 
         if step == 1:
-            if text.lower() not in skip_words:
-                profile["name"] = text
+            profile["name"] = text
             user_onboarding[user_id] = 2
             context.user_data["onboarding_profile"] = profile
             await send_chunked(chat_id, prompts["age"], context)
 
         elif step == 2:
-            if text.lower() not in skip_words:
-                profile["age"] = text
+            profile["age"] = text
             user_onboarding[user_id] = 3
             context.user_data["onboarding_profile"] = profile
             await send_chunked(chat_id, prompts["location"], context)
 
         elif step == 3:
-            if text.lower() not in skip_words:
-                profile["location"] = text
+            profile["location"] = text
             user_onboarding[user_id] = 4
             context.user_data["onboarding_profile"] = profile
             await send_chunked(chat_id, prompts["fortune"], context)
@@ -280,9 +263,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     if not TELEGRAM_BOT_TOKEN:
         print("Error: TELEGRAM_BOT_TOKEN is not set in .env")
-        return
-    if not ANTHROPIC_API_KEY:
-        print("Error: ANTHROPIC_API_KEY is not set in .env")
         return
 
     print("Starting 道家安慰師 Telegram Bot...")
