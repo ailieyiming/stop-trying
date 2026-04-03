@@ -1,0 +1,6 @@
+.env
+user_profiles.json
+SKILL.md
+__pycache__/
+*.pyc
+.DS_Store
