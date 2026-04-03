@@ -2,14 +2,14 @@
 
 A Telegram bot that eases anxiety through Daoist philosophy.
 
-It never tells you to fix yourself. It never asks "how does that make you feel?" It speaks like a 道长 who has seen ten thousand people with the same problem — and tells you, in three sentences or less, that **it's not your fault**.
+It never tells you to fix yourself. It never asks "how does that make you feel?" It speaks like a 道长 who has seen ten thousand people with the same problem — and tells you **stop trying**.
 
 ## How it works
 
 1. `/start` — onboarding: name, age, city
-2. 求签 — draw your daily fortune (上上签 / 上签 / 中签 / 下签)
+2. 求签 — draw your daily fortune 
 3. Talk — tell it what's on your mind, in Chinese or English
-4. It responds: names the external cause, gives you one physical action to do right now, drops a Daoist quote. Done.
+4. It responds: it never tells you to fix yourself..
 
 ## Setup
 
@@ -70,7 +70,7 @@ stop-trying/
 > 上善若水。水善利万物而不争。
 > *The highest good is like water — it benefits all things without striving.*
 
-The bot never tells you to meditate, journal, or "try harder." It tells you the world is hard, gives you something small and physical to do right now, and reminds you: 别试了。你已经是你自己了。
+The bot never tells you to meditate, journal, or "try harder." It tells you the world is hard and reminds you: 别试了。足够了。
 
 ## License
 
